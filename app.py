@@ -1,26 +1,63 @@
 import gradio as gr
-import pandas as pd
+from src.rag_system import RAGSystem
+import os
 
-def answer_question(question):
-    """
-    Placeholder function for the RAG system.
-    This will be replaced with the actual RAG implementation.
-    """
-    return f"Answer to the question: {question}\n\nThis is a placeholder response. The actual RAG system will be implemented here."
+# Initialize RAG System
+print("Initializing RAG System for UI...")
+vector_store_path = "vector_store"
 
-# Create Gradio interface
-interface = gr.Interface(
-    fn=answer_question,
-    inputs=gr.Textbox(lines=2, placeholder="Enter your question about customer complaints here...", label="Question"),
-    outputs=gr.Textbox(label="Answer"),
-    title="CrediTrust Financial - Complaint Analysis Chatbot",
-    description="Ask questions about customer complaints across different financial products (Credit Cards, Personal Loans, Savings Accounts, Money Transfers)",
+rag_system = None
+try:
+    if os.path.exists(vector_store_path):
+        rag_system = RAGSystem(vector_store_path=vector_store_path)
+    else:
+        print(f"Warning: Vector store not found at {vector_store_path}. Please run Task 2 first.")
+except Exception as e:
+    print(f"Failed to initialize RAG system: {e}")
+
+def chat_function(message, history):
+    """
+    Chat function for Gradio ChatInterface.
+    Parameters:
+        message (str): The current user message.
+        history (list): List of dictionaries representing conversation history 
+                       [{'role': 'user', 'content': '...'}, {'role': 'assistant', 'content': '...'}]
+    Returns:
+        str: The bot's response.
+    """
+    if rag_system is None:
+        return "System not initialized correctly. Please check if the vector store exists and try again."
+    
+    try:
+        # Generate response using RAG
+        response = rag_system.query(message)
+        answer = response["answer"]
+        
+        # Format sources
+        sources_text = "\n\n**Sources:**\n"
+        if response["source_documents"]:
+            for i, doc in enumerate(response["source_documents"][:3]): # Show top 3
+                text = doc.get('text', '')[:200]
+                sources_text += f"{i+1}. {text}...\n"
+        else:
+            sources_text += "No relevant sources found."
+            
+        return answer + sources_text
+    except Exception as e:
+        return f"Error processing request: {str(e)}"
+
+# Create the ChatInterface
+# In recent Gradio versions, ChatInterface uses the message format by default.
+demo = gr.ChatInterface(
+    fn=chat_function,
+    title="CrediTrust Complaint Assistant",
+    description="Ask questions about customer complaints and get insights based on real data.",
     examples=[
-        ["Why are people unhappy with Credit Cards?"],
-        ["What are the main issues with Personal Loans?"],
-        ["Show me complaints about Savings Accounts"]
+        "What are the common issues with Credit Cards?", 
+        "How are mortgage payments handled?",
+        "Why was my account closed?"
     ]
 )
 
 if __name__ == "__main__":
-    interface.launch()
+    demo.launch(share=False)

@@ -29,7 +29,7 @@ env/
 
 # Jupyter
 .ipynb_checkpoints
-*.ipynb
+
 
 # Data
 data/raw/
@@ -46,3 +46,7 @@ Thumbs.db
 
 # Logs
 *.log
+*.png
+
+/vector_store
+Complaint_embeddings.parquet
